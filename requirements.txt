@@ -1,0 +1,11 @@
+bottleneck
+erddapy
+fsspec
+matplotlib
+netCDF4
+numpy
+pandas
+requests
+scipy
+statsmodels
+xarray
