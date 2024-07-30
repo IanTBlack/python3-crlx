@@ -61,8 +61,8 @@ class SIKULIAQ_INFO:
     # GPS_ARCHIVE_URL: str = urljoin(API_URL, 'gnss_gga_bow_archive')
 
 class SIKULIAQ(CRLX):
-    def __init__(self, verbose: bool = False):
-        super().__init__(verbose)
+    def __init__(self, verbose: bool = False, verify: bool = False):
+        super().__init__(verbose, verify)
         self.VESSEL = SIKULIAQ_INFO
 
 
@@ -168,6 +168,7 @@ class SIKULIAQ(CRLX):
             ds['qartod_flat_line_pco2'] = flat_line_test(ds.pco2, 12,6, 1)
             ds['qartod_attenuated_pco2'] = attenuated_signal_test(ds.pco2, 2, 1)
 
+
             ds['qartod_range_sea_water_temperature'] = gross_range_test(ds.sea_water_temperature,
                                                                             sensor_min = -5, sensor_max = 35,
                                                                           operator_min = -1, operator_max = 32)
@@ -175,6 +176,44 @@ class SIKULIAQ(CRLX):
             ds['qartod_rate_of_change_sea_water_temperature'] = rate_of_change_test(ds.sea_water_temperature)
             ds['qartod_flat_line_sea_water_temperature'] = flat_line_test(ds.sea_water_temperature, 12,6, 0.0001)
             ds['qartod_attenuated_sea_water_temperature'] = attenuated_signal_test(ds.sea_water_temperature, 0.002, 0.001)
+
+
+        return ds
+
+
+
+    def get_pco2_apollo(self, begin_datetime: datetime, end_datetime: datetime, request_buffer: int = 60 * 60, max_gap: int = 3):
+        ds = self.get_data(self.VESSEL.DECIMATE_URL, begin_datetime, end_datetime, request_buffer, model = 'SensorMixLg11')
+        if ds is not None:
+            ds = ds.sortby('time')
+            ds = ds.where(ds.sensor_id == ds.sensor_id.values[-1],drop = True)
+
+            param_ds = self.get_parameter_metadata(self.VESSEL.PARAMETER_URL, ds.sensor_id.values[-1])
+            MAP = dict(zip(param_ds.data_fieldname.values.tolist(),param_ds.short_name.values.tolist()))
+            VARS_TO_KEEP = param_ds.short_name.values.tolist() + ['sensor_id']
+            ds = ds.rename(MAP)
+            ds = ds[VARS_TO_KEEP]
+            ds = ds[list(sorted(ds.data_vars))]
+            gps_ds = self.get_gps(begin_datetime, end_datetime,request_buffer = request_buffer + 900)
+            ds = assign_latlon(ds, gps_ds, max_gap)
+
+            # ds['qartod_location'] = location_test(ds.latitude, ds.longitude)
+            #
+            # ds['qartod_range_pco2'] = gross_range_test(ds.pco2, sensor_min = 0, sensor_max = 1800,
+            #                                            operator_min = 110, operator_max = 504)
+            # ds['qartod_spike_pco2'] = spike_test(ds.pco2)
+            # ds['qartod_rate_of_change_pco2'] = rate_of_change_test(ds.pco2)
+            # ds['qartod_flat_line_pco2'] = flat_line_test(ds.pco2, 12,6, 1)
+            # ds['qartod_attenuated_pco2'] = attenuated_signal_test(ds.pco2, 2, 1)
+            #
+            #
+            # ds['qartod_range_sea_water_temperature'] = gross_range_test(ds.sea_water_temperature,
+            #                                                                 sensor_min = -5, sensor_max = 35,
+            #                                                               operator_min = -1, operator_max = 32)
+            # ds['qartod_spike_sea_water_temperature'] = spike_test(ds.sea_water_temperature)
+            # ds['qartod_rate_of_change_sea_water_temperature'] = rate_of_change_test(ds.sea_water_temperature)
+            # ds['qartod_flat_line_sea_water_temperature'] = flat_line_test(ds.sea_water_temperature, 12,6, 0.0001)
+            # ds['qartod_attenuated_sea_water_temperature'] = attenuated_signal_test(ds.sea_water_temperature, 0.002, 0.001)
 
 
         return ds
@@ -193,6 +232,23 @@ class SIKULIAQ(CRLX):
             ds = assign_latlon(ds, gps_ds, max_gap)
 
             ds['qartod_location'] = location_test(ds.latitude, ds.longitude)
+
+
+            ds['qartod_range_relative_wind_direction'] = gross_range_test(ds.relative_wind_direction, sensor_min = 0,
+                                                                          sensor_max = 360)
+            ds['qartod_spike_relative_wind_direction'] = spike_test(ds.relative_wind_direction)
+            ds['qartod_rate_of_change_relative_wind_direction'] = rate_of_change_test(ds.relative_wind_direction)
+            ds['qartod_flat_line_relative_wind_direction'] = flat_line_test(ds.relative_wind_direction, 12,6, 0.5)
+            ds['qartod_attenuated_relative_wind_direction'] = attenuated_signal_test(ds.relative_wind_direction, 2, 1)
+
+
+            ds['qartod_range_relative_wind_speed'] = gross_range_test(ds.relative_wind_direction, sensor_min = 0,
+                                                                      sensor_max = 75)
+            ds['qartod_spike_relative_wind_speed'] = spike_test(ds.relative_wind_speed)
+            ds['qartod_rate_of_change_relative_wind_speed'] = rate_of_change_test(ds.relative_wind_speed)
+            ds['qartod_flat_line_relative_wind_speed'] = flat_line_test(ds.relative_wind_speed, 12,6, 0.25)
+            ds['qartod_attenuated_relative_wind_speed'] = attenuated_signal_test(ds.relative_wind_speed, 0.2, 0.1)
+
 
         return ds
 

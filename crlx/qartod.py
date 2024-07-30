@@ -54,12 +54,15 @@ def gross_range_test(data: xr.DataArray, sensor_min: float, sensor_max: float,
     results = xr.full_like(data, fill_value=FLAG.NOT_EVALUATED).astype('int8')
     results = results.where((data < sensor_min) & (data > sensor_max), FLAG.PASS)
     results = results.where((data > sensor_min) | (data < sensor_max), FLAG.FAIL)
+
+
+
     if operator_min is not None:
         if sensor_min != operator_min:
-            results = results.where((data > sensor_min) & (data <= operator_min), FLAG.SUSPECT)
+             results = results.where((data > operator_min) | (data < sensor_min), FLAG.SUSPECT)
     if operator_max is not None:
         if sensor_max != operator_max:
-            results = results.where((data < sensor_max) & (data >= operator_max), FLAG.SUSPECT)
+            results = results.where((data < operator_max) | (data > sensor_max), FLAG.SUSPECT)
 
     results = results.where(~np.isnan(data), FLAG.MISSING_DATA)
 
@@ -72,8 +75,14 @@ def gross_range_test(data: xr.DataArray, sensor_min: float, sensor_max: float,
         'valid_flags'] = "1 = PASS, 2 = NOT_EVALUATED, 3 = HIGH_INTEREST or SUSPECT, 4 = FAIL, 9 = MISSING_DATA"
     results.attrs['sensor_min'] = sensor_min
     results.attrs['sensor_max'] = sensor_max
-    results.attrs['operator_min'] = operator_min
-    results.attrs['operator_max'] = operator_max
+    if operator_min is not None:
+        results.attrs['operator_min'] = operator_min
+    else:
+        results.attrs['operator_min'] = 'No Operator Value Supplied'
+    if operator_max is not None:
+        results.attrs['operator_max'] = operator_max
+    else:
+        results.attrs['operator_max'] = 'No Operator Value Supplied'
     results.attrs['valid_min'] = sensor_min
     results.attrs['valid_max'] = sensor_max
     return results
@@ -236,7 +245,6 @@ def multi_variate_test(data1: xr.DataArray, data2: xr.DataArray,
     results.attrs['variable_2_multiplier'] = data2_multiplier
     results.attrs['mismatch_method'] = sel_method
     results.attrs['mismatch_tolerance'] = sel_tolerance
-
     return results
 
 
@@ -249,6 +257,15 @@ def attenuated_signal_test(data: xr.DataArray, min_var_fail:float, min_var_warn:
     results = results.where((std<min_var_warn) | (maxmin < min_var_warn), FLAG.PASS)
     results = results.where((~np.isnan(min_var_fail))| (~np.isnan(min_var_warn)), FLAG.NOT_EVALUATED)
     results = results.where((~np.isnan(data)), FLAG.MISSING_DATA)
+
+    results.attrs['test_name'] = f'QARTOD Attenuated Signal Test - {data.name}'
+    results.attrs['is_qartod'] = "True"
+    results.attrs['is_experimental'] = "False"
+    results.attrs[
+        'description'] = "The QARTOD Attenuated Signal Test assesses if the range of data are acceptable."
+    results.attrs['valid_flags'] = "1 = PASS, 2 = NOT_EVALUATED, 3 = HIGH_INTEREST or SUSPECT, 9 = MISSING_DATA"
+
+
     return results
 
 
